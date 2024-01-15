@@ -1,6 +1,7 @@
 <?php
 function ImportDataFromDomGosuslugi(){
     define ('ORG_IBLOCK_ID',123);
+    define('ADMIN_ID',1);
     $ch = curl_init();
 
     $headers = array(
@@ -27,6 +28,18 @@ function ImportDataFromDomGosuslugi(){
 
     $jsonArray = json_decode($response, true);
     $detailInfo = $jsonArray['detailInfo'];
+
+    $arOrder = array();
+    $arFilter = array("IBLOCK_ID" => ORG_IBLOCK_ID, "ACTIVE" => "Y", "ACTIVE_DATE"=>"Y", "PROPERTY_INN" => $detailInfo['inn']);
+    $arSelectFields = array('ID');
+    $res = CIBlockElement::GetList($arOrder, $arFilter, false, false, $arSelectFields);
+    $existedElementId = null;
+    if($existedElement = $res->GetNextElement())
+    {
+        $arFields = $existedElement->GetFields();
+        $existedElementId = $arFields['ID'];
+    }
+
     $el = new CIBlockElement;
     $PROP = array();
     $PROP['INFO_NAME_SHORT'] = $detailInfo['name'];
@@ -39,14 +52,19 @@ function ImportDataFromDomGosuslugi(){
     $PROP['PHONE'] = implode(',',$detailInfo['phones']);
 
     $arLoadOrgArray = Array(
-        'MODIFIED_BY' => $GLOBALS['USER']->GetID(), // элемент изменен текущим пользователем
-        'IBLOCK_SECTION_ID' => false, // элемент лежит в корне раздела
+        'MODIFIED_BY' => ADMIN_ID,
+        'IBLOCK_SECTION_ID' => false,
         'IBLOCK_ID' => ORG_IBLOCK_ID,
         'PROPERTY_VALUES' => $PROP,
         'NAME' =>  $detailInfo['name'],
         'ACTIVE' => 'Y', // активен
     );
+    if(!is_null($existedElementId)){
+        $el->Update($existedElementId,$arLoadOrgArray);
+    }
+    else{
+        $orgId = $el->Add($arLoadOrgArray);
+    }
 
-    $PRODUCT_ID = $el->Add($arLoadOrgArray);
     return "ImportDataFromDomGosuslugi();";
 }
